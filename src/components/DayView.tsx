@@ -1,25 +1,62 @@
 import React from 'react';
 
+interface Reservation {
+    id: string;
+    title: string;
+    startDateTime: Date;
+    endDateTime: Date;
+    color: string; // Ajoutez une propriété couleur à chaque réservation
+}
+
 interface DayViewProps {
     currentDate: Date;
-    onTimeSlotClick: (timeSlot: string) => void;
-    getAvailableRooms: (date: Date, timeSlot: string | null) => Room[];
+    reservations: Reservation[];
 }
 
-interface Room {
-    id: string;
-    name: string;
-}
+const DayView: React.FC<DayViewProps> = ({ currentDate, reservations }) => {
+    const timeSlots = Array.from({ length: 24 }, (_, i) => {
+        const hour = Math.floor(i);
+        const minute = (i % 1) * 60;
+        return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    });
 
-const DayView: React.FC<DayViewProps> = ({ currentDate, onTimeSlotClick, getAvailableRooms }) => {
-    const timeSlots = [
-        '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
-    ];
+    const getReservationsForTimeSlot = (time: string) => {
+        const [hour, minute] = time.split(':').map(Number);
+        const slotStart = new Date(currentDate);
+        slotStart.setHours(hour, minute, 0, 0);
+        const slotEnd = new Date(slotStart);
+        slotEnd.setMinutes(slotEnd.getMinutes() + 30);
 
-    const getAvailabilityColor = (availableRooms: number) => {
-        if (availableRooms === 0) return 'bg-red-200 hover:bg-red-300';
-        if (availableRooms < 2) return 'bg-yellow-200 hover:bg-yellow-300';
-        return 'bg-green-200 hover:bg-green-300';
+        return reservations.filter(reservation =>
+            reservation.startDateTime < slotEnd &&
+            reservation.endDateTime > slotStart &&
+            reservation.startDateTime.getDate() === currentDate.getDate() &&
+            reservation.startDateTime.getMonth() === currentDate.getMonth() &&
+            reservation.startDateTime.getFullYear() === currentDate.getFullYear()
+        );
+    };
+
+    const getTimesSlotStyle = (reservation: Reservation) => {
+        const startHour = reservation.startDateTime.getHours();
+        const startMinute = reservation.startDateTime.getMinutes();
+        const endHour = reservation.endDateTime.getHours();
+        const endMinute = reservation.endDateTime.getMinutes();
+
+        const top = (startHour + startMinute / 30 ) * 30 + 10; // 60px par heure (20px de marge)
+        const height = ((endHour + endMinute / 30) - (startHour + startMinute / 30)) * 30;
+
+        return {
+            top: `${top}px`,
+            height: `${height}px`,
+            backgroundColor: reservation.color,
+            zIndex: 1
+        };
+    };
+
+
+
+    const formatTimeRange = (start: Date, end: Date) => {
+        return `${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
     };
 
     return (
@@ -27,25 +64,23 @@ const DayView: React.FC<DayViewProps> = ({ currentDate, onTimeSlotClick, getAvai
             <h2 className="text-xl font-bold mb-4">
                 {currentDate.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-1">
                 {timeSlots.map(slot => {
-                    const availableRooms = getAvailableRooms(currentDate, slot);
+                    const slotReservations = getReservationsForTimeSlot(slot);
                     return (
-                        <button
-                            key={slot}
-                            onClick={() => onTimeSlotClick(slot)}
-                            className={`w-full p-2 text-left border rounded ${getAvailabilityColor(availableRooms.length)} transition duration-150 ease-in-out`}
-                        >
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold">{slot}</span>
-                                <span className="text-sm">
-                                    {availableRooms.length} salle{availableRooms.length > 1 ? 's' : ''} disponible{availableRooms.length > 1 ? 's' : ''}
-                                </span>
+                        <div key={slot} className="flex border-b py-1">
+                            <div className="w-16 text-xs font-semibold">{slot}</div>
+                            <div className="flex-grow">
+                                {slotReservations.map(reservation => (
+                                    <div key={reservation.id}
+                                         className="bg-blue-200 text-xs p-1 mb-1 rounded overflow-hidden whitespace-nowrap text-ellipsis"
+                                         style={getTimesSlotStyle(reservation)}
+                                         title={`${reservation.title}\n${formatTimeRange(reservation.startDateTime, reservation.endDateTime)}`}>
+                                        {reservation.title}
+                                    </div>
+                                ))}
                             </div>
-                            <div className="text-xs mt-1">
-                                {availableRooms.map(room => room.name).join(', ')}
-                            </div>
-                        </button>
+                        </div>
                     );
                 })}
             </div>

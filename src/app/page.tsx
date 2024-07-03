@@ -1,25 +1,25 @@
-import type { NextPage } from 'next';
-import Head from 'next/head';
-import Calendar from '../components/Calendar';
+import React from 'react';
+import Schedule from '../components/schedule';
 
-const Home: NextPage = () => {
+
+const Home: React.FC = () => {
+    const reservations = [
+        {
+            id: '1',
+            title: 'Réunion A',
+            startDateTime: new Date(2024, 0, 1, 10, 0),
+            endDateTime: new Date(2024, 0, 1, 12, 0),
+            color: '#4299e1' // bleu
+        },
+    ];
+
     return (
-        <div className="min-h-screen bg-gray-100 py-6 flex flex-col">
-            <Head>
-                <title>Calendrier de réservation de salles</title>
-                <link rel="icon" href="/favicon.ico" />
-            </Head>
-
-            <main className="flex-grow container mx-auto px-4">
-                <h1 className="text-3xl font-bold mb-6 text-center">Réservation de salles</h1>
-                <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                    <Calendar />
-                </div>
-            </main>
-
-            <footer className="mt-8 text-center text-gray-500">
-                <p>&copy; 2024 Système de réservation de salles</p>
-            </footer>
+        <div className="container mx-auto p-4">
+            <Schedule
+                reservations={reservations}
+                startDate={new Date(2024, 0, 1)}  // 1er janvier 2024
+                endDate={new Date(2024, 11, 31)} // 31 décembre 2024
+            />
         </div>
     );
 };

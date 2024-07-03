@@ -1,88 +1,91 @@
 import React from 'react';
 
+interface Reservation {
+    id: string;
+    title: string;
+    startDateTime: Date;
+    endDateTime: Date;
+    color: string; // Ajoutez une propriété couleur à chaque réservation
+}
+
 interface WeekViewProps {
     currentDate: Date;
-    currentWeek: number;
+    reservations: Reservation[];
     onDateClick: (date: Date) => void;
-    onTimeSlotClick: (date: Date, timeSlot: string) => void;
-    getAvailabilityForDate: (date: Date) => number;
-    getAvailableRooms: (date: Date, timeSlot: string | null) => Room[];
 }
 
-interface Room {
-    id: string;
-    name: string;
-}
-
-const WeekView: React.FC<WeekViewProps> = ({
-                                               currentDate,
-                                               currentWeek,
-                                               onDateClick,
-                                               onTimeSlotClick,
-                                               getAvailabilityForDate,
-                                               getAvailableRooms
-                                           }) => {
-    const getWeekDays = (date: Date, weekNumber: number) => {
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const firstDayOfMonth = new Date(year, month, 1);
-        const startDay = new Date(firstDayOfMonth);
-        startDay.setDate(1 - firstDayOfMonth.getDay() + weekNumber * 7);
-
+const WeekView: React.FC<WeekViewProps> = ({ currentDate, reservations, onDateClick }) => {
+    const getWeekDays = (date: Date) => {
+        const start = new Date(date);
+        start.setDate(start.getDate() - start.getDay());
         const week = [];
         for (let i = 0; i < 7; i++) {
-            const day = new Date(startDay);
-            day.setDate(startDay.getDate() + i);
+            const day = new Date(start);
+            day.setDate(start.getDate() + i);
             week.push(day);
         }
         return week;
     };
 
-    const weekDays = getWeekDays(currentDate, currentWeek);
-    const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+    const weekDays = getWeekDays(currentDate);
+    const hours = Array.from({ length: 24 }, (_, i) => i);
 
-    const getAvailabilityColor = (availableRooms: number) => {
-        if (availableRooms === 0) return 'bg-red-200';
-        if (availableRooms < 2) return 'bg-yellow-200';
-        return 'bg-green-200';
+    const getReservationsForDay = (date: Date) => {
+        return reservations.filter(reservation =>
+            reservation.startDateTime.getDate() === date.getDate() &&
+            reservation.startDateTime.getMonth() === date.getMonth() &&
+            reservation.startDateTime.getFullYear() === date.getFullYear()
+        );
+    };
+
+    const getReservationStyle = (reservation: Reservation) => {
+        const startHour = reservation.startDateTime.getHours();
+        const startMinute = reservation.startDateTime.getMinutes();
+        const endHour = reservation.endDateTime.getHours();
+        const endMinute = reservation.endDateTime.getMinutes();
+
+        const top = (startHour + startMinute / 60 ) * 60 + 20; // 60px par heure (20px de marge)
+        const height = ((endHour + endMinute / 60) - (startHour + startMinute / 60)) * 60;
+
+        return {
+            top: `${top}px`,
+            height: `${height}px`,
+            backgroundColor: reservation.color,
+            zIndex: 1
+        };
     };
 
     return (
         <div className="overflow-x-auto">
-            <div className="grid grid-cols-8 gap-1 min-w-max">
+            <div className="grid grid-cols-8 gap-0.5">
                 <div className="border p-2">
-                    <div className="font-bold text-sm">Heure</div>
+                    <div className="font-bold">Heure</div>
                 </div>
-                {weekDays.map((day, index) => (
-                    <div key={index} className="border p-2">
-                        <div className="font-bold text-sm">{day.toLocaleDateString('default', { weekday: 'short' })}</div>
-                        <div
-                            onClick={() => onDateClick(day)}
-                            className="text-center p-2 cursor-pointer hover:bg-gray-100"
-                        >
-                            {day.getDate()}
-                        </div>
-                        <div className="text-xs text-green-600">
-                            {getAvailabilityForDate(day)} disponibles
-                        </div>
+                {weekDays.map((day, dayIndex) => (
+                    <div key={dayIndex}
+                         className="border p-2 cursor-pointer"
+                         onClick={() => onDateClick(day)}>
+                        <div className="font-bold">{day.toLocaleDateString('default', { weekday: 'short' })}</div>
+                        <div>{day.getDate()}</div>
                     </div>
                 ))}
-                {timeSlots.map((slot, slotIndex) => (
-                    <React.Fragment key={slotIndex}>
-                        <div className="border p-2 text-sm">{slot}</div>
-                        {weekDays.map((day, dayIndex) => {
-                            const availableRooms = getAvailableRooms(day, slot);
-                            return (
-                                <div
-                                    key={`${slotIndex}-${dayIndex}`}
-                                    className={`border p-2 ${getAvailabilityColor(availableRooms.length)} cursor-pointer hover:opacity-75`}
-                                    title={`Salles disponibles: ${availableRooms.map(room => room.name).join(', ')}`}
-                                    onClick={() => onTimeSlotClick(day, slot)}
-                                >
-                                    <div className="text-xs font-semibold">{availableRooms.length} disponible{availableRooms.length > 1 ? 's' : ''}</div>
-                                </div>
-                            );
-                        })}
+                {hours.map(hour => (
+                    <React.Fragment key={hour}>
+                        <div className="border-r border-b p-2">{`${hour.toString().padStart(2, '0')}:00`}</div>
+                        {weekDays.map((day, dayIndex) => (
+                            <div key={`${hour}-${dayIndex}`} className="border-r border-b relative" style={{height: '60px'}}>
+                                {hour === 0 && getReservationsForDay(day).map((reservation, index) => (
+                                    <div
+                                        key={reservation.id}
+                                        className="opacity-100 absolute left-0 right-0 p-1 text-xs text-white overflow-hidden z-offset"
+                                        style={getReservationStyle(reservation)}
+                                        title={`${reservation.title}\n${reservation.startDateTime.toLocaleTimeString()} - ${reservation.endDateTime.toLocaleTimeString()}`}
+                                    >
+                                        {reservation.title}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
                     </React.Fragment>
                 ))}
             </div>

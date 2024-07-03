@@ -1,12 +1,20 @@
 import React from 'react';
 
-interface MonthViewProps {
-    currentDate: Date;
-    onDateClick: (date: Date) => void;
-    getAvailabilityForDate: (date: Date) => number;
+interface Reservation {
+    id: string;
+    title: string;
+    startDateTime: Date;
+    endDateTime: Date;
+    color: string; // Ajoutez une propriété couleur à chaque réservation
 }
 
-const MonthView: React.FC<MonthViewProps> = ({ currentDate, onDateClick, getAvailabilityForDate }) => {
+interface MonthViewProps {
+    currentDate: Date;
+    reservations: Reservation[];
+    onDateClick: (date: Date) => void;
+}
+
+const MonthView: React.FC<MonthViewProps> = ({ currentDate, reservations, onDateClick }) => {
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
         const month = date.getMonth();
@@ -17,10 +25,16 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, onDateClick, getAvai
     const days = getDaysInMonth(currentDate);
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
-    const getAvailabilityColor = (availability: number) => {
-        if (availability === 0) return 'bg-red-200';
-        if (availability < 10) return 'bg-yellow-200';
-        return 'bg-green-200';
+    const getReservationsForDate = (date: Date) => {
+        return reservations.filter(reservation =>
+            reservation.startDateTime.getDate() === date.getDate() &&
+            reservation.startDateTime.getMonth() === date.getMonth() &&
+            reservation.startDateTime.getFullYear() === date.getFullYear()
+        );
+    };
+
+    const formatTimeRange = (start: Date, end: Date) => {
+        return `${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
     };
 
     return (
@@ -32,17 +46,18 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, onDateClick, getAvai
                 <div key={`empty-${index}`} className="text-center p-2"></div>
             ))}
             {days.map((day, index) => {
-                const availability = getAvailabilityForDate(day);
+                const dayReservations = getReservationsForDate(day);
                 return (
-                    <div
-                        key={index}
-                        onClick={() => onDateClick(day)}
-                        className={`text-center p-2 cursor-pointer ${getAvailabilityColor(availability)} hover:opacity-75 transition duration-150 ease-in-out`}
-                    >
+                    <div key={index} className="border p-2 min-h-[100px] overflow-y-auto">
                         <div className="font-semibold">{day.getDate()}</div>
-                        <div className="text-xs">
-                            {availability} créneau{availability > 1 ? 'x' : ''}
-                        </div>
+                        {dayReservations.map(reservation => (
+                            <div key={reservation.id}
+                                 className="bg-blue-200 text-xs p-1 mt-1 rounded overflow-hidden whitespace-nowrap text-ellipsis"
+                                 onClick={() => onDateClick(day)}
+                                 title={`${reservation.title}\n${formatTimeRange(reservation.startDateTime, reservation.endDateTime)}`}>
+                                {reservation.title}
+                            </div>
+                        ))}
                     </div>
                 );
             })}
